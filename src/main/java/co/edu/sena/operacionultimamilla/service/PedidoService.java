@@ -24,7 +24,6 @@ public class PedidoService {
 
     public Pedido crearPedido(Pedido pedido) {
 
-        // Validar cliente
         if (pedido.getCliente() == null ||
             pedido.getCliente().trim().isEmpty()) {
 
@@ -34,7 +33,6 @@ public class PedidoService {
             );
         }
 
-        // Validar producto
         if (pedido.getProductoId() == null) {
 
             throw new ResponseStatusException(
@@ -51,7 +49,6 @@ public class PedidoService {
             );
         }
 
-        // Validar cantidad
         if (pedido.getCantidad() == null ||
             pedido.getCantidad() <= 0) {
 
@@ -61,7 +58,6 @@ public class PedidoService {
             );
         }
 
-        // Validar prioridad
         if (pedido.getPrioridad() == null) {
 
             throw new ResponseStatusException(
@@ -70,16 +66,11 @@ public class PedidoService {
             );
         }
 
-        // Generar ID
         pedido.setId(siguienteId);
-
-        // Todo pedido nuevo comienza pendiente
         pedido.setEstado(EstadoPedido.PENDIENTE);
 
-        // Guardar pedido
         pedidos.add(pedido);
 
-        // Preparar siguiente ID
         siguienteId++;
 
         return pedido;
@@ -88,5 +79,123 @@ public class PedidoService {
     public List<Pedido> obtenerTodos() {
 
         return pedidos;
+    }
+
+    public Pedido buscarPorId(Long id) {
+
+        for (Pedido pedido : pedidos) {
+
+            if (pedido.getId().equals(id)) {
+                return pedido;
+            }
+        }
+
+        return null;
+    }
+
+    public Pedido confirmarPedido(Long id) {
+
+        Pedido pedido = buscarPorId(id);
+
+        if (pedido == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "El pedido no existe"
+            );
+        }
+
+        if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Solo se pueden confirmar pedidos pendientes"
+            );
+        }
+
+        if (!productoService.hayStock(
+                pedido.getProductoId(),
+                pedido.getCantidad())) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "No hay stock suficiente"
+            );
+        }
+
+        productoService.descontarStock(
+                pedido.getProductoId(),
+                pedido.getCantidad()
+        );
+
+        pedido.setEstado(EstadoPedido.CONFIRMADO);
+
+        return pedido;
+    }
+
+    public Pedido cancelarPedido(Long id) {
+
+        Pedido pedido = buscarPorId(id);
+
+        if (pedido == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "El pedido no existe"
+            );
+        }
+
+        if (pedido.getEstado() == EstadoPedido.CANCELADO) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El pedido ya está cancelado"
+            );
+        }
+
+        if (pedido.getEstado() == EstadoPedido.DESPACHADO) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "No se puede cancelar un pedido despachado"
+            );
+        }
+
+        if (pedido.getEstado() == EstadoPedido.CONFIRMADO) {
+
+            productoService.aumentarStock(
+                    pedido.getProductoId(),
+                    pedido.getCantidad()
+            );
+        }
+
+        pedido.setEstado(EstadoPedido.CANCELADO);
+
+        return pedido;
+    }
+
+    public Pedido despacharPedido(Long id) {
+
+        Pedido pedido = buscarPorId(id);
+
+        if (pedido == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "El pedido no existe"
+            );
+        }
+
+        if (pedido.getEstado() != EstadoPedido.CONFIRMADO) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Solo se pueden despachar pedidos confirmados"
+            );
+        }
+
+        pedido.setEstado(EstadoPedido.DESPACHADO);
+
+        return pedido;
     }
 }

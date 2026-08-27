@@ -20,9 +20,11 @@ public class PedidoController {
     }
 
     @PostMapping
-    public ResponseEntity<Pedido> crearPedido(@RequestBody Pedido pedido) {
+    public ResponseEntity<Pedido> crearPedido(
+            @RequestBody Pedido pedido) {
 
-        Pedido nuevoPedido = pedidoService.crearPedido(pedido);
+        Pedido nuevoPedido =
+                pedidoService.crearPedido(pedido);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -35,5 +37,35 @@ public class PedidoController {
         return ResponseEntity.ok(
                 pedidoService.obtenerTodos()
         );
+    }
+
+    @PutMapping("/{id}/confirmar")
+    public ResponseEntity<Pedido> confirmarPedido(
+            @PathVariable Long id) {
+
+        Pedido pedido =
+                pedidoService.confirmarPedido(id);
+
+        return ResponseEntity.ok(pedido);
+    }
+
+    @PutMapping("/{id}/cancelar")
+    public ResponseEntity<Pedido> cancelarPedido(
+            @PathVariable Long id) {
+
+        Pedido pedido =
+                pedidoService.cancelarPedido(id);
+
+        return ResponseEntity.ok(pedido);
+    }
+
+    @PutMapping("/{id}/despachar")
+    public ResponseEntity<Pedido> despacharPedido(
+            @PathVariable Long id) {
+
+        Pedido pedido =
+                pedidoService.despacharPedido(id);
+
+        return ResponseEntity.ok(pedido);
     }
 }
