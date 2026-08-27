@@ -34,4 +34,33 @@ public class ProductoService {
 
         return buscarPorId(id) != null;
     }
+
+    public boolean hayStock(Long id, Integer cantidad) {
+
+        Producto producto = buscarPorId(id);
+
+        if (producto == null) {
+            return false;
+        }
+
+        return producto.getStock() >= cantidad;
+    }
+
+    public void descontarStock(Long id, Integer cantidad) {
+
+        Producto producto = buscarPorId(id);
+
+        if (producto != null) {
+            producto.setStock(producto.getStock() - cantidad);
+        }
+    }
+
+    public void aumentarStock(Long id, Integer cantidad) {
+
+        Producto producto = buscarPorId(id);
+
+        if (producto != null) {
+            producto.setStock(producto.getStock() + cantidad);
+        }
+    }
 }
