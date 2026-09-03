@@ -1,7 +1,7 @@
 package co.edu.sena.operacionultimamilla.service;
 
-import co.edu.sena.operacionultimamilla.model.Pedido;
 import co.edu.sena.operacionultimamilla.model.EstadoPedido;
+import co.edu.sena.operacionultimamilla.model.Pedido;
 import co.edu.sena.operacionultimamilla.model.Prioridad;
 import co.edu.sena.operacionultimamilla.model.ResumenPedidosDTO;
 import org.springframework.http.HttpStatus;
@@ -31,7 +31,7 @@ public class PedidoService {
         if (pedido.getCliente() == null || pedido.getCliente().trim().isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "El cliente es obligatorio"
+                    "Se deben llenar todos los campos obligatorios correctamente."
             );
         }
 
@@ -45,7 +45,7 @@ public class PedidoService {
         if (!productoService.existeProducto(pedido.getProductoId())) {
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
-                    "El producto no existe"
+                    "Producto con ID no existente, compruebe el ID."
             );
         }
 
@@ -59,15 +59,14 @@ public class PedidoService {
         if (pedido.getPrioridad() == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "La prioridad es obligatoria"
+                    "Este estado no es válido. Las opciones permitidas son: BAJA, MEDIA, ALTA, URGENTE."
             );
         }
 
-        pedido.setId(siguienteId);
+        pedido.setId(siguienteId++);
         pedido.setEstado(EstadoPedido.PENDIENTE);
 
         pedidos.add(pedido);
-        siguienteId++;
 
         return pedido;
     }
@@ -77,12 +76,10 @@ public class PedidoService {
     }
 
     public Pedido buscarPorId(Long id) {
-        for (Pedido pedido : pedidos) {
-            if (pedido.getId().equals(id)) {
-                return pedido;
-            }
-        }
-        return null;
+        return pedidos.stream()
+                .filter(p -> p.getId().equals(id))
+                .findFirst()
+                .orElse(null);
     }
 
     public Pedido confirmarPedido(Long id) {
@@ -91,7 +88,14 @@ public class PedidoService {
         if (pedido == null) {
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
-                    "El pedido no existe"
+                    "Producto con ID no existente, compruebe el ID."
+            );
+        }
+
+        if (pedido.getEstado() == EstadoPedido.CANCELADO) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El pedido ya está cancelado, no se puede confirmar."
             );
         }
 
@@ -105,7 +109,7 @@ public class PedidoService {
         if (!productoService.hayStock(pedido.getProductoId(), pedido.getCantidad())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "No hay stock suficiente"
+                    "Este pedido no podría ser despachado porque no contamos con Stock suficiente."
             );
         }
 
@@ -158,10 +162,17 @@ public class PedidoService {
             );
         }
 
+        if (pedido.getEstado() == EstadoPedido.CANCELADO) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Este pedido ya fue cancelado, no se puede despachar."
+            );
+        }
+
         if (pedido.getEstado() != EstadoPedido.CONFIRMADO) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Solo se pueden despachar pedidos confirmados"
+                    "El pedido debe estar en estado CONFIRMADO para poder despacharse."
             );
         }
 
@@ -170,7 +181,7 @@ public class PedidoService {
         return pedido;
     }
 
-    // --- MÉTODOS DEL INTEGRANTE 3 (CONSULTAS, PRIORIDAD Y RIESGO) ---
+    // --- MÉTODOS DE CONSULTAS, PRIORIDAD Y RIESGO ---
 
     public List<Pedido> obtenerPendientes() {
         return pedidos.stream()
@@ -178,9 +189,11 @@ public class PedidoService {
                 .collect(Collectors.toList());
     }
 
+    // TEST V06: Filtra urgentes excluyendo los CANCELADOS
     public List<Pedido> obtenerUrgentes() {
         return pedidos.stream()
                 .filter(p -> p.getPrioridad() == Prioridad.URGENTE)
+                .filter(p -> p.getEstado() == EstadoPedido.PENDIENTE || p.getEstado() == EstadoPedido.CONFIRMADO)
                 .collect(Collectors.toList());
     }
 
@@ -196,7 +209,7 @@ public class PedidoService {
         long confirmados = pedidos.stream().filter(p -> p.getEstado() == EstadoPedido.CONFIRMADO).count();
         long despachados = pedidos.stream().filter(p -> p.getEstado() == EstadoPedido.DESPACHADO).count();
         long cancelados = pedidos.stream().filter(p -> p.getEstado() == EstadoPedido.CANCELADO).count();
-        long urgentes = pedidos.stream().filter(p -> p.getPrioridad() == Prioridad.URGENTE).count();
+        long urgentes = pedidos.stream().filter(p -> p.getPrioridad() == Prioridad.URGENTE && p.getEstado() != EstadoPedido.CANCELADO).count();
 
         return new ResumenPedidosDTO(total, pendientes, confirmados, despachados, cancelados, urgentes);
     }

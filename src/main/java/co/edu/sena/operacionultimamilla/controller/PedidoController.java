@@ -50,7 +50,7 @@ public class PedidoController {
         return ResponseEntity.ok(pedido);
     }
 
-    // --- ENDPOINTS INTEGRANTE 3 ---
+    // --- ENDPOINTS DE CONSULTAS, PRIORIDAD Y RIESGO ---
 
     @GetMapping("/pendientes")
     public ResponseEntity<List<Pedido>> obtenerPendientes() {
