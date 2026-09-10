@@ -23,8 +23,7 @@ public class Pedido {
     public Pedido() {
     }
 
-    public Pedido(Long id, String cliente, Long productoId, Integer cantidad,
-                   Prioridad prioridad, EstadoPedido estado) {
+    public Pedido(Long id, String cliente, Long productoId, Integer cantidad, Prioridad prioridad, EstadoPedido estado) {
         this.id = id;
         this.cliente = cliente;
         this.productoId = productoId;
