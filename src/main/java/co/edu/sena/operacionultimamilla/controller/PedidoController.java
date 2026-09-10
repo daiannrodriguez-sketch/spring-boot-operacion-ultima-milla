@@ -2,6 +2,7 @@ package co.edu.sena.operacionultimamilla.controller;
 
 import co.edu.sena.operacionultimamilla.model.EstadoPedido;
 import co.edu.sena.operacionultimamilla.model.Pedido;
+import co.edu.sena.operacionultimamilla.model.Prioridad;
 import co.edu.sena.operacionultimamilla.model.ResumenPedidosDTO;
 import co.edu.sena.operacionultimamilla.service.PedidoService;
 
@@ -50,7 +51,7 @@ public class PedidoController {
         return ResponseEntity.ok(pedido);
     }
 
-    // --- ENDPOINTS DE CONSULTAS, PRIORIDAD Y RIESGO ---
+    // --- ENDPOINTS INTEGRANTE 3 ---
 
     @GetMapping("/pendientes")
     public ResponseEntity<List<Pedido>> obtenerPendientes() {
@@ -80,5 +81,24 @@ public class PedidoController {
     @GetMapping("/en-riesgo")
     public ResponseEntity<List<Pedido>> obtenerEnRiesgo() {
         return ResponseEntity.ok(pedidoService.obtenerEnRiesgo());
+    }
+
+    @GetMapping("/cliente")
+    public ResponseEntity<List<Pedido>> buscarPorCliente(@RequestParam String cliente) {
+        return ResponseEntity.ok(pedidoService.buscarPorCliente(cliente));
+    }
+
+    @GetMapping("/prioridad")
+    public ResponseEntity<List<Pedido>> buscarPorPrioridad(@RequestParam Prioridad prioridad) {
+        return ResponseEntity.ok(pedidoService.buscarPorPrioridad(prioridad));
+    }
+
+    // --- CONSULTA PROPIA DEL EQUIPO (Boss 3) ---
+    // Resuelve: ¿qué pedidos urgentes siguen sin confirmarse? Ayuda a priorizar
+    // despacho y asignar recursos primero a los pedidos más críticos antes de
+    // que se acumulen o incumplan el tiempo de entrega esperado.
+    @GetMapping("/urgentes-pendientes")
+    public ResponseEntity<List<Pedido>> obtenerUrgentesPendientes() {
+        return ResponseEntity.ok(pedidoService.obtenerUrgentesPendientes());
     }
 }

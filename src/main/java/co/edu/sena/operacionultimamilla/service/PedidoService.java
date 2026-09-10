@@ -1,15 +1,12 @@
 package co.edu.sena.operacionultimamilla.service;
 
-import co.edu.sena.operacionultimamilla.model.EstadoPedido;
 import co.edu.sena.operacionultimamilla.model.Pedido;
-import co.edu.sena.operacionultimamilla.model.Prioridad;
-import co.edu.sena.operacionultimamilla.model.ResumenPedidosDTO;
+import co.edu.sena.operacionultimamilla.model.EstadoPedido;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,218 +14,170 @@ import java.util.stream.Collectors;
 public class PedidoService {
 
     private final List<Pedido> pedidos = new ArrayList<>();
+
     private Long siguienteId = 1L;
 
     private final ProductoService productoService;
 
-    public PedidoService(ProductoService productoService) {
+    public PedidoService(PedidoRepository pedidoRepository, ProductoService productoService) {
+        this.pedidoRepository = pedidoRepository;
         this.productoService = productoService;
     }
 
     // --- MÉTODOS DE CREACIÓN Y CAMBIO DE ESTADO ---
 
     public Pedido crearPedido(Pedido pedido) {
-        if (pedido.getCliente() == null || pedido.getCliente().trim().isEmpty()) {
+
+        if (pedido.getCliente() == null ||
+            pedido.getCliente().trim().isEmpty()) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Se deben llenar todos los campos obligatorios correctamente."
+                    "El cliente es obligatorio"
             );
         }
-
         if (pedido.getProductoId() == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "El productoId es obligatorio"
             );
         }
-
         if (!productoService.existeProducto(pedido.getProductoId())) {
+
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
-                    "Producto con ID no existente, compruebe el ID."
+                    "El producto no existe"
             );
         }
 
-        if (pedido.getCantidad() == null || pedido.getCantidad() <= 0) {
+        if (pedido.getCantidad() == null ||
+            pedido.getCantidad() <= 0) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "La cantidad debe ser mayor que cero"
             );
         }
-
         if (pedido.getPrioridad() == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Este estado no es válido. Las opciones permitidas son: BAJA, MEDIA, ALTA, URGENTE."
+                    "La prioridad es obligatoria"
             );
         }
 
-        pedido.setId(siguienteId++);
+        pedido.setId(siguienteId);
         pedido.setEstado(EstadoPedido.PENDIENTE);
 
         pedidos.add(pedido);
+
+        siguienteId++;
 
         return pedido;
     }
 
     public List<Pedido> obtenerTodos() {
+
         return pedidos;
     }
 
     public Pedido buscarPorId(Long id) {
-        return pedidos.stream()
-                .filter(p -> p.getId().equals(id))
-                .findFirst()
-                .orElse(null);
+
+        for (Pedido pedido : pedidos) {
+
+            if (pedido.getId().equals(id)) {
+                return pedido;
+            }
+        }
+
+        return null;
     }
 
     public Pedido confirmarPedido(Long id) {
         Pedido pedido = buscarPorId(id);
-
         if (pedido == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
-                    "Producto con ID no existente, compruebe el ID."
+                    "El pedido no existe"
             );
         }
-
-        if (pedido.getEstado() == EstadoPedido.CANCELADO) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "El pedido ya está cancelado, no se puede confirmar."
-            );
-        }
-
         if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Solo se pueden confirmar pedidos pendientes"
             );
         }
 
-        if (!productoService.hayStock(pedido.getProductoId(), pedido.getCantidad())) {
+        if (!productoService.hayStock(
+                pedido.getProductoId(),
+                pedido.getCantidad())) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Este pedido no podría ser despachado porque no contamos con Stock suficiente."
+                    "No hay stock suficiente"
             );
         }
 
         productoService.descontarStock(pedido.getProductoId(), pedido.getCantidad());
         pedido.setEstado(EstadoPedido.CONFIRMADO);
-
-        return pedido;
+        return pedidoRepository.save(pedido);
     }
 
     public Pedido cancelarPedido(Long id) {
         Pedido pedido = buscarPorId(id);
-
         if (pedido == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
                     "El pedido no existe"
             );
         }
-
         if (pedido.getEstado() == EstadoPedido.CANCELADO) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "El pedido ya está cancelado"
             );
         }
-
         if (pedido.getEstado() == EstadoPedido.DESPACHADO) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "No se puede cancelar un pedido despachado"
             );
         }
-
         if (pedido.getEstado() == EstadoPedido.CONFIRMADO) {
             productoService.aumentarStock(pedido.getProductoId(), pedido.getCantidad());
         }
-
         pedido.setEstado(EstadoPedido.CANCELADO);
-
-        return pedido;
+        return pedidoRepository.save(pedido);
     }
 
     public Pedido despacharPedido(Long id) {
         Pedido pedido = buscarPorId(id);
-
         if (pedido == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
                     "El pedido no existe"
             );
         }
 
-        if (pedido.getEstado() == EstadoPedido.CANCELADO) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Este pedido ya fue cancelado, no se puede despachar."
-            );
-        }
-
         if (pedido.getEstado() != EstadoPedido.CONFIRMADO) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "El pedido debe estar en estado CONFIRMADO para poder despacharse."
+                    "Solo se pueden despachar pedidos confirmados"
             );
         }
-
         pedido.setEstado(EstadoPedido.DESPACHADO);
-
-        return pedido;
+        return pedidoRepository.save(pedido);
     }
-
-    // --- MÉTODOS DE CONSULTAS, PRIORIDAD Y RIESGO ---
 
     public List<Pedido> obtenerPendientes() {
-        return pedidos.stream()
-                .filter(p -> p.getEstado() == EstadoPedido.PENDIENTE)
-                .collect(Collectors.toList());
-    }
-
-    // TEST V06: Filtra urgentes excluyendo los CANCELADOS
-    public List<Pedido> obtenerUrgentes() {
-        return pedidos.stream()
-                .filter(p -> p.getPrioridad() == Prioridad.URGENTE)
-                .filter(p -> p.getEstado() == EstadoPedido.PENDIENTE || p.getEstado() == EstadoPedido.CONFIRMADO)
-                .collect(Collectors.toList());
-    }
-
-    public List<Pedido> obtenerPorEstado(EstadoPedido estado) {
-        return pedidos.stream()
-                .filter(p -> p.getEstado() == estado)
-                .collect(Collectors.toList());
-    }
-
-    public ResumenPedidosDTO obtenerResumen() {
-        long total = pedidos.size();
-        long pendientes = pedidos.stream().filter(p -> p.getEstado() == EstadoPedido.PENDIENTE).count();
-        long confirmados = pedidos.stream().filter(p -> p.getEstado() == EstadoPedido.CONFIRMADO).count();
-        long despachados = pedidos.stream().filter(p -> p.getEstado() == EstadoPedido.DESPACHADO).count();
-        long cancelados = pedidos.stream().filter(p -> p.getEstado() == EstadoPedido.CANCELADO).count();
-        long urgentes = pedidos.stream().filter(p -> p.getPrioridad() == Prioridad.URGENTE && p.getEstado() != EstadoPedido.CANCELADO).count();
-
-        return new ResumenPedidosDTO(total, pendientes, confirmados, despachados, cancelados, urgentes);
-    }
-
-    public Pedido obtenerSiguiente() {
-        return pedidos.stream()
-                .filter(p -> p.getEstado() == EstadoPedido.PENDIENTE)
-                .min(Comparator.comparing(Pedido::getPrioridad, (p1, p2) -> Integer.compare(p2.ordinal(), p1.ordinal()))
-                        .thenComparing(Pedido::getId))
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "No hay pedidos pendientes por atender"
-                ));
-    }
-
-    public List<Pedido> obtenerEnRiesgo() {
-        return pedidos.stream()
-                .filter(p -> p.getEstado() == EstadoPedido.PENDIENTE)
-                .filter(p -> !productoService.hayStock(p.getProductoId(), p.getCantidad()))
-                .collect(Collectors.toList());
+        return pedidoRepository.findByEstado(EstadoPedido.PENDIENTE);
     }
 }
